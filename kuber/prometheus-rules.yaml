@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+data:
+  alerts.yml: |
+    groups:
+      - name: validator-api
+        rules:
+          - alert: ValidatorAPIDown
+            expr: up{job="validator-api"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Validator API service is down"
+              description: "Validator API instance {{ $labels.instance }} has been down for more than 1 minute."
+          
+          - alert: HighResponseTime
+            expr: histogram_quantile(0.95, sum(rate(validator_api_request_duration_seconds_bucket[5m])) by (le, endpoint)) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Slow response time for {{ $labels.endpoint }}"
+              description: "Endpoint {{ $labels.endpoint }} has 95th percentile response time > 500ms for 5 minutes."
+          
+          - alert: HighErrorRate
+            expr: sum(rate(validator_api_requests_total{status=~"5.."}[5m])) / sum(rate(validator_api_requests_total[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High error rate"
+              description: "Error rate is above 5% for 5 minutes."

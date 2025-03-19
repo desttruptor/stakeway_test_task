@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: validator-api
+  labels:
+    app: validator-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: validator-api
+  template:
+    metadata:
+      labels:
+        app: validator-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: validator-api
+          image: yourusername/validator-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: validator-api-config
+                  key: db_path
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: "512Mi"
+            requests:
+              cpu: "0.2"
+              memory: "256Mi"
+          volumeMounts:
+            - name: data-storage
+              mountPath: /data
+      volumes:
+        - name: data-storage
+          persistentVolumeClaim:
+            claimName: validator-api-pvc
